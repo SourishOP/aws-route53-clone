@@ -693,21 +693,6 @@ table.data-table tbody tr.selected {
   text-align: center;
 }
 
-/* ---------- Coming soon ---------- */
-.coming-soon {
-  text-align: center;
-  padding: 80px 20px;
-}
-.coming-soon h1 {
-  font-size: 28px;
-  margin-bottom: 8px;
-}
-.coming-soon p {
-  color: var(--color-text-secondary);
-  max-width: 480px;
-  margin: 0 auto;
-}
-
 /* ---------- Spinner ---------- */
 .spinner {
   width: 20px;
