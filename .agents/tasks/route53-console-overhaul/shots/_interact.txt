@@ -1,0 +1,31 @@
+PASS - login redirects to app :: http://localhost:3000/hosted-zones
+PASS - empty-name inline error shown, no navigation
+PASS - char counter updates :: The description can have up to 256 characters. 26/256
+PASS - create -> flashbar success
+PASS - create -> navigates to list :: http://localhost:3000/hosted-zones
+PASS - new zone listed :: reviewtest1791314634937.com
+PASS - zone detail opened
+PASS - DNS record created
+PASS - DNS record deleted
+PASS - zone edit saved (modal closed + value updated)
+FAIL - delete confirm enables Delete button
+
+FATAL: locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('.modal').getByRole('button', { name: 'Delete' })[22m
+[2m    - locator resolved to <button disabled class="btn btn--primary">Delete</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not enabled[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not enabled[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    58 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not enabled[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+
+    at run (C:\Users\dasso\OneDrive\Desktop\Scalar\frontend\_interact.mjs:107:16)
