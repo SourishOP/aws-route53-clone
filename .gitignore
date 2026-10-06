@@ -1,0 +1,24 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.log
+npm-debug.log*
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
