@@ -13,6 +13,8 @@ API and a persistent database.
 | Database | SQLite via SQLAlchemy                 |
 | Auth     | Mocked, signed-cookie sessions        |
 
+**Repository:** https://github.com/SourishOP/aws-route53-clone
+
 **Live demo:** https://aws-route53-clone-nu.vercel.app
 Sign in with `admin` / `admin`. (The backend runs on Render's free tier, so the
 first request after a period of inactivity may take ~50 seconds to wake.)
@@ -377,43 +379,26 @@ Full OpenAPI/Swagger docs are served at `http://127.0.0.1:8000/docs`.
 
 ## Deployment
 
-The app is two pieces, so a hosted demo means deploying both and pointing the
-frontend at the backend.
+The app is split in two, so each half is hosted on the platform that suits it:
 
-**Recommended split:** frontend on **Vercel**, backend on **Render** (or Railway /
-Fly.io). Both have free tiers.
+- **Frontend → Vercel.** Vercel is built for Next.js, so the App Router build,
+  routing, and env-based config work out of the box with zero extra setup, and the
+  free tier is plenty for a demo.
+- **Backend → Render.** Render runs a long-lived Python/uvicorn process directly
+  from the repo (unlike Vercel's serverless model, which doesn't suit a stateful
+  FastAPI + SQLite server), again on a free tier.
 
-### 1. Backend (Render)
-1. Push this repo to GitHub.
-2. On Render, create a **Web Service** from the repo, root directory `backend`.
-3. Build command: `pip install -r requirements.txt`
-4. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. Note the public URL it gives you, e.g. `https://route53-clone-api.onrender.com`.
+The two talk over HTTPS: the frontend proxies `/api/*` to the Render backend
+(set via a `BACKEND_URL` env var), and the backend allows the Vercel origin for
+CORS and uses a cross-site session cookie so login works across the two domains.
+A `render.yaml` blueprint in the repo captures the backend's build/start commands
+and environment so it's reproducible.
 
-Because this uses SQLite on local disk, data resets when the instance restarts —
-fine for a demo. For durable data, attach a Render disk or switch the SQLAlchemy
-URL to Postgres.
-
-Two small things to set for production:
-- In `app/main.py`, add your Vercel domain to the CORS `allow_origins` list.
-- The session cookie is currently `SameSite=Lax`; if the frontend and backend end
-  up on different domains, set it to `SameSite=None; Secure` in `app/auth.py` so
-  the browser sends it cross-site.
-
-### 2. Frontend (Vercel)
-1. On Vercel, import the repo, root directory `frontend`.
-2. In `next.config.mjs`, point the `/api/*` rewrite at your backend URL (replace the
-   local `127.0.0.1:8000` destination with the Render URL), or set it from an env
-   var and add that var in Vercel.
-3. Deploy. Vercel gives you a URL like `https://route53-clone.vercel.app`.
-
-### 3. Finish
-Put the Vercel URL in the **Live demo** line at the top of this README, open it,
-and sign in with `admin` / `admin`.
-
-> Quickest all-in-one alternative: deploy the whole repo to a single VM (an
-> EC2/DigitalOcean box), run the backend with uvicorn and the frontend with
-> `npm run build && npm run start` behind nginx. More control, more setup.
+One trade-off worth noting: the backend uses SQLite on the instance's local disk,
+and Render's free tier has an ephemeral filesystem — so the database resets (and
+reseeds the sample data) whenever the instance restarts or wakes from idle. That's
+fine for a demo; for durable storage you'd attach a persistent disk or move to a
+hosted database.
 
 ---
 
@@ -425,7 +410,12 @@ and sign in with `admin` / `admin`.
 
 (Both are prefilled on the sign-in screen.)
 
-**Seeded data:** one session named **First Principles** containing the zones
-`example.com.`, `myapp.io.`, and `internal.local.`, each with a handful of sample
-records (NS, SOA, A, CNAME, MX). Create a second session from the sign-in screen to
-see the isolation — it starts empty, and anything you add there stays there.
+**Seeded data:** two sessions are created under the account so you can see the
+per-session isolation right away:
+
+- **First Principles** — `example.com.`, `myapp.io.`, `internal.local.`
+- **Production Account** — `acme-corp.com.`, `shop-acme.net.`, `vpc-internal.aws.`
+
+Each zone comes with starter records (NS, SOA, A, CNAME, MX). Pick one session on
+the sign-in screen, note its zones, then sign out and pick the other — the two show
+completely different hosted zones, which is the point of the session scoping.
