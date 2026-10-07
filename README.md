@@ -13,8 +13,9 @@ API and a persistent database.
 | Database | SQLite via SQLAlchemy                 |
 | Auth     | Mocked, signed-cookie sessions        |
 
-**Live demo:** _<add your hosted URL here once deployed — see [Deployment](#deployment)>_
-Sign in with `admin` / `admin`.
+**Live demo:** https://aws-route53-clone-nu.vercel.app
+Sign in with `admin` / `admin`. (The backend runs on Render's free tier, so the
+first request after a period of inactivity may take ~50 seconds to wake.)
 
 ---
 
