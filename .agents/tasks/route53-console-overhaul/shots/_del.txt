@@ -1,7 +1,0 @@
-required="deltest1791314777409.com."
-zoneName=deltest1791314777409.com
-labelText="To confirm, type deltest1791314777409.com."
-inputCount=1
-domVal="deltest1791314777409.com."
-deleteEnabled=true
-zoneDeleted=true

@@ -34,10 +34,33 @@ class User(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class AccountSession(Base):
+    """A named workspace/session under a single user account.
+
+    Each session scopes its own set of hosted zones, mimicking the AWS
+    "Choose AWS sessions" concept where one account can hold several sessions.
+    """
+    __tablename__ = "account_sessions"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=_now)
+
+
 class HostedZone(Base):
     __tablename__ = "hosted_zones"
 
     id = Column(String, primary_key=True, default=_uuid)
+    # Owning session (workspace). Nullable for legacy rows / safety.
+    session_id = Column(
+        String,
+        ForeignKey("account_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     # Route53-style zone id, e.g. Z1D633PJN98FT9
     zone_id = Column(String, unique=True, nullable=False, index=True)
     name = Column(String, nullable=False, index=True)

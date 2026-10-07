@@ -12,12 +12,17 @@ app = FastAPI(
     description="A functional clone of the AWS Route53 API (mocked DNS).",
 )
 
+import os
+
+# Allowed CORS origins. Local dev defaults are always included; add your
+# deployed frontend origin via FRONTEND_ORIGIN (comma-separated for several),
+# e.g. FRONTEND_ORIGIN=https://route53-clone.vercel.app
+_default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+_extra = [o.strip() for o in os.environ.get("FRONTEND_ORIGIN", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_default_origins + _extra,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

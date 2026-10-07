@@ -1,0 +1,19 @@
+# Render blueprint for the FastAPI backend.
+# In the Render dashboard: New + → Blueprint → pick this repo.
+# After it deploys, copy the service URL and:
+#   - set it as BACKEND_URL in the Vercel (frontend) project
+#   - set FRONTEND_ORIGIN below to your Vercel URL
+services:
+  - type: web
+    name: route53-clone-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: COOKIE_CROSS_SITE
+        value: "1"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        sync: false   # set this to your Vercel URL after the frontend deploys

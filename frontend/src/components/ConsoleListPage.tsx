@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { Breadcrumb, Crumb } from "./Breadcrumb";
 import { Pagination } from "./Pagination";
-import { InfoLink, RefreshIcon, GearIcon } from "./icons";
+import { InfoLink, RefreshIcon } from "./icons";
 
 export interface ConsoleColumn {
   label: string;
@@ -89,7 +89,6 @@ export function ConsoleListPage({
 }: ConsoleListPageProps) {
   const hasColumns = !!columns && columns.length > 0;
   const pagerEnabled = showPager ?? hasColumns;
-  const gearEnabled = showGear ?? hasColumns;
 
   const titleText =
     count !== undefined ? `${title} (${count})` : title;
@@ -139,11 +138,7 @@ export function ConsoleListPage({
               {pagerEnabled && (
                 <Pagination page={1} pageSize={10} total={0} onPageChange={() => {}} />
               )}
-              {gearEnabled && (
-                <button type="button" className="icon-btn" aria-label="Settings">
-                  <GearIcon />
-                </button>
-              )}
+
             </div>
             <div className="table-wrap">
               <table className="data-table">

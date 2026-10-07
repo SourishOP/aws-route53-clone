@@ -1,7 +1,0 @@
-{
-  "task_id": "task-route53-console-overhaul",
-  "task_description": "Overhaul the Next.js (App Router, TypeScript) frontend of the Route 53 clone so every section faithfully matches the real AWS Route 53 console: rebuild the data-driven Sidebar (exact groups/order + DNS Firewall external item) and TopNav (hamburger, logo, app grid, centered [Alt+S] search, CloudShell/bell/account menu with real username+account_id + Sign out), add a reusable ConsoleListPage, rework the hosted-zones list, replace CreateZoneModal with a full /hosted-zones/create page, build full Dashboard and Health checks pages, build every other sidebar destination as a real console-styled page, and remove ComingSoon (and the /coming-soon and /resolver routes) repo-wide. CSS additions reuse existing --awsui-orange/--awsui-blue tokens (no new #ff9900 token). Backend is NOT touched. Verification is npm run build (no eslint gate) plus browser visual checks logged in as admin/admin.",
-  "status": "completed",
-  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
-  "blocked_reason": null
-}

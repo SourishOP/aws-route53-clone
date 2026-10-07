@@ -50,9 +50,33 @@ export const api = {
 
   me: () => request<User>("/auth/me"),
 
+  // ---------- Sessions (workspaces) ----------
+  listSessions: () =>
+    request<{ id: string; name: string; zone_count: number }[]>(
+      "/auth/sessions"
+    ),
+
+  createSession: (name: string) =>
+    request<{ id: string; name: string; zone_count: number }>(
+      "/auth/sessions",
+      { method: "POST", body: JSON.stringify({ name }) }
+    ),
+
+  activateSession: (session_id: string) =>
+    request<User>("/auth/sessions/activate", {
+      method: "POST",
+      body: JSON.stringify({ session_id }),
+    }),
+
   // ---------- Hosted Zones ----------
   listZones: (params: {
     search?: string;
+    name?: string;
+    type?: string;
+    created_by?: string;
+    description?: string;
+    zone_id?: string;
+    record_count?: string;
     page?: number;
     page_size?: number;
     sort?: string;
@@ -60,6 +84,12 @@ export const api = {
   }) => {
     const qs = new URLSearchParams();
     if (params.search) qs.set("search", params.search);
+    if (params.name) qs.set("name", params.name);
+    if (params.type) qs.set("type", params.type);
+    if (params.created_by) qs.set("created_by", params.created_by);
+    if (params.description) qs.set("description", params.description);
+    if (params.zone_id) qs.set("zone_id", params.zone_id);
+    if (params.record_count) qs.set("record_count", params.record_count);
     qs.set("page", String(params.page ?? 1));
     qs.set("page_size", String(params.page_size ?? 10));
     if (params.sort) qs.set("sort", params.sort);
@@ -90,6 +120,10 @@ export const api = {
     params: {
       search?: string;
       type?: string;
+      name?: string;
+      value?: string;
+      routing_policy?: string;
+      ttl?: string;
       page?: number;
       page_size?: number;
       sort?: string;
@@ -99,6 +133,10 @@ export const api = {
     const qs = new URLSearchParams();
     if (params.search) qs.set("search", params.search);
     if (params.type) qs.set("type", params.type);
+    if (params.name) qs.set("name", params.name);
+    if (params.value) qs.set("value", params.value);
+    if (params.routing_policy) qs.set("routing_policy", params.routing_policy);
+    if (params.ttl) qs.set("ttl", params.ttl);
     qs.set("page", String(params.page ?? 1));
     qs.set("page_size", String(params.page_size ?? 10));
     if (params.sort) qs.set("sort", params.sort);
@@ -143,4 +181,30 @@ export const api = {
     request<void>(`/hosted-zones/${zoneId}/records/${recordId}`, {
       method: "DELETE",
     }),
+
+  // ---------- Import / Export ----------
+  importRecords: (zoneId: string, content: string) =>
+    request<{ created: number; skipped: number; errors: string[] }>(
+      `/hosted-zones/${zoneId}/import`,
+      { method: "POST", body: JSON.stringify({ content }) }
+    ),
+
+  exportZone: async (
+    zoneId: string,
+    format: "json" | "bind"
+  ): Promise<{ filename: string; content: string }> => {
+    const res = await fetch(
+      `${BASE}/hosted-zones/${zoneId}/export?format=${format}`,
+      { credentials: "include" }
+    );
+    if (!res.ok) {
+      throw new Error(`Export failed (${res.status})`);
+    }
+    const content = await res.text();
+    let filename = `zone.${format === "bind" ? "zone" : "json"}`;
+    const cd = res.headers.get("Content-Disposition");
+    const match = cd && /filename="?([^"]+)"?/.exec(cd);
+    if (match) filename = match[1];
+    return { filename, content };
+  },
 };

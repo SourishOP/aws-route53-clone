@@ -16,6 +16,8 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  verifyCredentials: (username: string, password: string) => Promise<void>;
+  enterApp: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -59,6 +61,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace("/hosted-zones");
   };
 
+  // Populate the user from the current cookie session (used after a session is
+  // activated during the multi-stage login) without re-issuing credentials.
+  const enterApp = async () => {
+    const u = await api.me();
+    setUser(u);
+    router.replace("/hosted-zones");
+  };
+
+  // Verify credentials for the first login stage WITHOUT entering the app yet.
+  // The backend sets the session cookie on success; we clear it immediately so
+  // the route guard does not auto-advance past the "Choose AWS sessions" stage.
+  const verifyCredentials = async (username: string, password: string) => {
+    await api.login(username, password);
+    await api.logout();
+  };
+
   const logout = async () => {
     await api.logout();
     setUser(null);
@@ -66,7 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, verifyCredentials, enterApp, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import type { HostedZone } from "@/lib/types";
@@ -9,39 +9,73 @@ import { Pagination } from "@/components/Pagination";
 import { EditZoneModal } from "@/components/EditZoneModal";
 import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { useFlash } from "@/components/FlashbarProvider";
-import { RefreshIcon, GearIcon } from "@/components/icons";
+import { RefreshIcon, InfoLink } from "@/components/icons";
+import { ThemeToggleButton } from "@/components/ThemeToggleButton";
+import {
+  PropertyFilter,
+  PropertyFilterHandle,
+  PropertyDefinition,
+  FilterToken,
+} from "@/components/PropertyFilter";
+import { useSelection } from "@/components/useSelection";
+import { useFilterFocus } from "@/components/FilterFocusProvider";
+import { downloadText } from "@/lib/download";
 
 const PAGE_SIZE = 10;
 
+const DEFS: PropertyDefinition[] = [
+  { key: "name", label: "Hosted zone name", operator: "contains" },
+  {
+    key: "type",
+    label: "Type",
+    operator: "equals",
+    suggestedValues: ["Public", "Private"],
+  },
+  { key: "created_by", label: "Created by", operator: "contains" },
+  { key: "record_count", label: "Record count", operator: "equals" },
+  { key: "description", label: "Description", operator: "contains" },
+  { key: "zone_id", label: "Hosted zone ID", operator: "contains" },
+];
+
 export default function HostedZonesPage() {
   const flash = useFlash();
+  const filterFocus = useFilterFocus();
+  const filterRef = useRef<PropertyFilterHandle>(null);
+
   const [zones, setZones] = useState<HostedZone[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [debounced, setDebounced] = useState("");
+  const [tokens, setTokens] = useState<FilterToken[]>([]);
   const [sort, setSort] = useState("name");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<string | null>(null);
 
+  const sel = useSelection(zones.map((z) => z.id));
   const [editZone, setEditZone] = useState<HostedZone | null>(null);
-  const [deleteZone, setDeleteZone] = useState<HostedZone | null>(null);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
-  // debounce search
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebounced(search);
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [search]);
+  // Register the page filter for the "/" shortcut.
+  useEffect(() => filterFocus.register(() => filterRef.current?.focus()), [
+    filterFocus,
+  ]);
+
+  const buildParams = useCallback(() => {
+    const p: Record<string, string> = {};
+    const free: string[] = [];
+    for (const t of tokens) {
+      if (t.property === "") free.push(t.value);
+      else p[t.property] = t.value;
+    }
+    if (free.length) p.search = free.join(" ");
+    return p;
+  }, [tokens]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.listZones({
-        search: debounced,
+        ...buildParams(),
         page,
         page_size: PAGE_SIZE,
         sort,
@@ -50,64 +84,114 @@ export default function HostedZonesPage() {
       setZones(data.items);
       setTotal(data.total);
     } catch (err) {
-      flash.error((err as Error).message);
+      if ((err as { status?: number }).status !== 401) {
+        flash.error((err as Error).message);
+      }
     } finally {
       setLoading(false);
     }
-  }, [debounced, page, sort, order, flash]);
+  }, [buildParams, page, sort, order, flash]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // reset page + selection when filters change
+  useEffect(() => {
+    setPage(1);
+    sel.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens]);
+
   const toggleSort = (col: string) => {
-    if (sort === col) {
-      setOrder((o) => (o === "asc" ? "desc" : "asc"));
-    } else {
+    if (sort === col) setOrder((o) => (o === "asc" ? "desc" : "asc"));
+    else {
       setSort(col);
       setOrder("asc");
     }
   };
-
   const sortIndicator = (col: string) =>
     sort === col ? (order === "asc" ? " ▲" : " ▼") : "";
 
-  const selectedZone = zones.find((z) => z.id === selected) || null;
+  const selectedList = zones.filter((z) => sel.isSelected(z.id));
+  const singleZone = sel.count === 1 ? selectedList[0] : null;
+
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headerCheckboxRef.current)
+      headerCheckboxRef.current.indeterminate = sel.someSelected;
+  }, [sel.someSelected]);
+
+  const doExport = async (format: "json" | "bind") => {
+    if (!singleZone) return;
+    setExportOpen(false);
+    try {
+      const { filename, content } = await api.exportZone(singleZone.id, format);
+      downloadText(filename, content, format === "json" ? "application/json" : "text/plain");
+      flash.success(`Exported ${singleZone.name} as ${format.toUpperCase()}.`);
+    } catch (err) {
+      flash.error((err as Error).message);
+    }
+  };
 
   return (
     <div>
-      <Breadcrumb items={[{ label: "Route 53", href: "/hosted-zones" }, { label: "Hosted zones" }]} />
+      <Breadcrumb
+        items={[
+          { label: "Route 53", href: "/hosted-zones" },
+          { label: "Hosted zones" },
+        ]}
+      />
 
       <div className="page-header">
         <div>
           <h1>
-            Hosted zones <span className="count">({total})</span>
+            Hosted zones ({total}) <InfoLink />
           </h1>
         </div>
         <div className="page-header__actions">
-          <button className="icon-btn" onClick={() => load()} aria-label="Refresh">
+          <button className="icon-btn" aria-label="Refresh" onClick={() => load()}>
             <RefreshIcon />
           </button>
           <Link
             className="btn"
-            href={selectedZone ? `/hosted-zones/${selectedZone.id}` : "#"}
-            style={!selectedZone ? { pointerEvents: "none", opacity: 0.5 } : {}}
+            href={singleZone ? `/hosted-zones/${singleZone.id}` : "#"}
+            style={!singleZone ? { pointerEvents: "none", opacity: 0.5 } : {}}
           >
             View details
           </Link>
           <button
             className="btn"
-            disabled={!selectedZone}
-            onClick={() => selectedZone && setEditZone(selectedZone)}
+            disabled={!singleZone}
+            onClick={() => singleZone && setEditZone(singleZone)}
           >
             Edit
           </button>
+          <div className="topnav__item-wrap" style={{ display: "inline-block" }}>
+            <button
+              className="btn"
+              disabled={!singleZone}
+              onClick={() => setExportOpen((o) => !o)}
+            >
+              Export ▾
+            </button>
+            {exportOpen && singleZone && (
+              <div className="dropdown-menu" role="menu">
+                <button className="dropdown-menu__item" onClick={() => doExport("json")}>
+                  Export as JSON
+                </button>
+                <button className="dropdown-menu__item" onClick={() => doExport("bind")}>
+                  Export as BIND
+                </button>
+              </div>
+            )}
+          </div>
           <button
             className="btn"
-            disabled={!selectedZone}
-            onClick={() => selectedZone && setDeleteZone(selectedZone)}
+            disabled={sel.count === 0}
+            onClick={() => setShowBulkDelete(true)}
           >
-            Delete
+            Delete{sel.count > 0 ? ` (${sel.count})` : ""}
           </button>
           <Link className="btn btn--create" href="/hosted-zones/create">
             Create hosted zone
@@ -122,26 +206,24 @@ export default function HostedZonesPage() {
 
       <div className="container-box">
         <div className="toolbar">
-          <div className="toolbar__search">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M11 11L14 14" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-            <input
-              placeholder="Filter records by property or value"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+          <PropertyFilter
+            ref={filterRef}
+            definitions={DEFS}
+            tokens={tokens}
+            onChange={setTokens}
+            placeholder="Filter records by property or value"
+          />
+          <div className="toolbar__spacer" />
           <Pagination
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
-            onPageChange={setPage}
+            onPageChange={(p) => {
+              setPage(p);
+              sel.clear();
+            }}
           />
-          <button className="icon-btn" aria-label="Settings">
-            <GearIcon />
-          </button>
+          <ThemeToggleButton />
         </div>
 
         <div className="table-wrap">
@@ -152,16 +234,26 @@ export default function HostedZonesPage() {
           ) : zones.length === 0 ? (
             <div className="empty-state">
               <strong>No hosted zones</strong>
-              There are no hosted zones created for this account.
-              <Link className="btn btn--create" href="/hosted-zones/create">
-                Create hosted zone
-              </Link>
+              <div>There are no hosted zones created for this account.</div>
+              <div style={{ marginTop: 16 }}>
+                <Link className="btn btn--create" href="/hosted-zones/create">
+                  Create hosted zone
+                </Link>
+              </div>
             </div>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th className="checkbox-cell"></th>
+                  <th className="checkbox-cell">
+                    <input
+                      ref={headerCheckboxRef}
+                      type="checkbox"
+                      checked={sel.allSelected}
+                      onChange={sel.toggleAll}
+                      aria-label="Select all"
+                    />
+                  </th>
                   <th className="sortable" onClick={() => toggleSort("name")}>
                     Hosted zone name{sortIndicator("name")}
                   </th>
@@ -178,15 +270,20 @@ export default function HostedZonesPage() {
                 {zones.map((z) => (
                   <tr
                     key={z.id}
-                    className={selected === z.id ? "selected" : ""}
-                    onClick={() => setSelected(z.id)}
+                    className={sel.isSelected(z.id) ? "selected" : ""}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("a")) return;
+                      sel.toggle(z.id);
+                    }}
                   >
-                    <td className="checkbox-cell">
+                    <td
+                      className="checkbox-cell"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
-                        type="radio"
-                        name="zone-select"
-                        checked={selected === z.id}
-                        onChange={() => setSelected(z.id)}
+                        type="checkbox"
+                        checked={sel.isSelected(z.id)}
+                        onChange={() => sel.toggle(z.id)}
                         aria-label={`Select ${z.name}`}
                       />
                     </td>
@@ -217,7 +314,10 @@ export default function HostedZonesPage() {
           page={page}
           pageSize={PAGE_SIZE}
           total={total}
-          onPageChange={setPage}
+          onPageChange={(p) => {
+            setPage(p);
+            sel.clear();
+          }}
         />
       </div>
 
@@ -232,24 +332,42 @@ export default function HostedZonesPage() {
         />
       )}
 
-      {deleteZone && (
+      {showBulkDelete && (
         <ConfirmDeleteModal
-          title="Delete hosted zone"
-          requireText={deleteZone.name}
+          title={`Delete ${sel.count} hosted zone${sel.count > 1 ? "s" : ""}`}
           message={
-            <p>
-              Are you sure you want to delete the hosted zone{" "}
-              <strong>{deleteZone.name}</strong>? This will permanently delete
-              the zone and all {deleteZone.record_count} of its records. This
-              action cannot be undone.
-            </p>
+            <div>
+              <p>
+                Are you sure you want to delete {sel.count} hosted zone
+                {sel.count > 1 ? "s" : ""}? This permanently deletes the zone
+                {sel.count > 1 ? "s" : ""} and all records. This cannot be
+                undone.
+              </p>
+              <ul>
+                {selectedList.map((z) => (
+                  <li key={z.id}>{z.name}</li>
+                ))}
+              </ul>
+            </div>
           }
-          onClose={() => setDeleteZone(null)}
+          onClose={() => setShowBulkDelete(false)}
           onConfirm={async () => {
-            await api.deleteZone(deleteZone.id);
-            flash.success(`Hosted zone ${deleteZone.name} deleted.`);
-            setDeleteZone(null);
-            setSelected(null);
+            const ids = selectedList.map((z) => z.id);
+            let ok = 0;
+            let fail = 0;
+            for (const id of ids) {
+              try {
+                await api.deleteZone(id);
+                ok++;
+              } catch {
+                fail++;
+              }
+            }
+            setShowBulkDelete(false);
+            sel.clear();
+            if (fail) flash.error(`${ok} deleted, ${fail} failed.`);
+            else flash.success(`${ok} hosted zone${ok > 1 ? "s" : ""} deleted.`);
+            setPage(1);
             load();
           }}
         />

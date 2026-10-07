@@ -2,7 +2,7 @@
 
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { Pagination } from "@/components/Pagination";
-import { InfoLink, RefreshIcon, GearIcon } from "@/components/icons";
+import { InfoLink, RefreshIcon } from "@/components/icons";
 
 const COLUMNS = ["ID", "Name", "State", "Details", "Status in last 24 hours", "Actions"];
 
@@ -41,9 +41,6 @@ export default function Page() {
           </div>
           <div className="toolbar__spacer" />
           <Pagination page={1} pageSize={10} total={0} onPageChange={() => {}} />
-          <button type="button" className="icon-btn" aria-label="Settings">
-            <GearIcon />
-          </button>
         </div>
 
         <div className="table-wrap">

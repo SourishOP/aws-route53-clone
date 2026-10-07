@@ -67,6 +67,7 @@ export default function CreateHostedZonePage() {
         <div className="container-box__header">
           <h2>Hosted zone configuration</h2>
         </div>
+        <div className="container-box__content">
         <div className="helper-line">
           A hosted zone is a container that holds information about how you want
           to route traffic for a domain, such as example.com, and its
@@ -167,6 +168,7 @@ export default function CreateHostedZonePage() {
         </div>
 
         {error && <div className="field-error">{error}</div>}
+        </div>
       </div>
 
       <div className="container-box">
@@ -175,6 +177,7 @@ export default function CreateHostedZonePage() {
             Tags <InfoLink />
           </h2>
         </div>
+        <div className="container-box__content">
         <div className="helper-line">
           Apply tags to hosted zones to help organize and identify them.
         </div>
@@ -186,6 +189,7 @@ export default function CreateHostedZonePage() {
         </button>
         <div className="helper-line" style={{ marginTop: 12 }}>
           You can add up to 50 more tags.
+        </div>
         </div>
       </div>
 

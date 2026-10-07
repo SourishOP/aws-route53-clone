@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
+import { useSidebar } from "./SidebarProvider";
+import { useTheme } from "./ThemeProvider";
+import { useOutsideClose } from "./useOutsideClose";
+import { ALL_SECTIONS } from "@/lib/nav";
+import { NOTIFICATIONS } from "@/lib/notifications";
 import {
   HamburgerIcon,
   GridIcon,
@@ -11,11 +18,70 @@ import {
 
 export function TopNav() {
   const { user, logout } = useAuth();
+  const { toggle: toggleSidebar, collapsed } = useSidebar();
+  const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
+
   const [menuOpen, setMenuOpen] = useState(false);
+  const [appsOpen, setAppsOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [shellOpen, setShellOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const appsRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useOutsideClose(menuRef, () => setMenuOpen(false), menuOpen);
+  useOutsideClose(appsRef, () => setAppsOpen(false), appsOpen);
+  useOutsideClose(bellRef, () => setBellOpen(false), bellOpen);
+  useOutsideClose(searchRef, () => setSearchOpen(false), searchOpen);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return ALL_SECTIONS.filter((s) => s.label.toLowerCase().includes(q)).slice(
+      0,
+      8
+    );
+  }, [query]);
+
+  const go = (href: string) => {
+    router.push(href);
+    setSearchOpen(false);
+    setQuery("");
+    setAppsOpen(false);
+  };
+
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!searchOpen) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlight((h) => Math.min(h + 1, results.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const r = results[highlight];
+      if (r) go(r.href);
+    } else if (e.key === "Escape") {
+      setSearchOpen(false);
+    }
+  };
 
   return (
     <header className="topnav">
-      <button type="button" className="topnav__icon-btn" aria-label="Open menu">
+      <button
+        type="button"
+        className="topnav__icon-btn"
+        aria-label="Toggle navigation"
+        aria-expanded={!collapsed}
+        onClick={toggleSidebar}
+      >
         <HamburgerIcon />
       </button>
       <div className="topnav__logo" title="AWS">
@@ -34,21 +100,179 @@ export function TopNav() {
           />
         </svg>
       </div>
-      <button type="button" className="topnav__icon-btn" aria-label="Applications">
-        <GridIcon />
-      </button>
-      <div className="topnav__search">
-        <input placeholder="Search" aria-label="Search" />
-        <span className="topnav__kbd">[Alt+S]</span>
+
+      <div className="topnav__item-wrap" ref={appsRef}>
+        <button
+          type="button"
+          className="topnav__icon-btn"
+          aria-label="Applications"
+          aria-expanded={appsOpen}
+          onClick={() => setAppsOpen((o) => !o)}
+        >
+          <GridIcon />
+        </button>
+        {appsOpen && (
+          <div className="topnav__apps" role="menu">
+            <div className="topnav__apps-title">Route 53 — all sections</div>
+            <div className="topnav__apps-grid">
+              {ALL_SECTIONS.map((s) => (
+                <button
+                  key={s.href}
+                  type="button"
+                  className="topnav__apps-item"
+                  onClick={() => go(s.href)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      <div className="topnav__search" ref={searchRef}>
+        <input
+          id="topnav-search"
+          placeholder="Search"
+          aria-label="Search"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setSearchOpen(true);
+            setHighlight(0);
+          }}
+          onFocus={() => setSearchOpen(true)}
+          onKeyDown={onSearchKey}
+        />
+        <span className="topnav__kbd">[Alt+S]</span>
+        {searchOpen && query.trim() && (
+          <div className="topnav__search-panel" role="listbox">
+            <div className="topnav__search-side">
+              <div className="topnav__search-side-item active">Services</div>
+              <div className="topnav__search-side-item">Features</div>
+              <div className="topnav__search-side-item">Resources</div>
+              <div className="topnav__search-side-item">Documentation</div>
+              <div className="topnav__search-side-item">Marketplace</div>
+            </div>
+            <div className="topnav__search-main">
+              <div className="topnav__search-section-title">Services</div>
+              <div className="topnav__search-service">
+                <div className="topnav__search-service-head">
+                  <span className="topnav__search-service-icon" aria-hidden>
+                    53
+                  </span>
+                  <div>
+                    <button
+                      type="button"
+                      className="topnav__search-service-name"
+                      onClick={() => go("/dashboard")}
+                    >
+                      Route 53
+                    </button>
+                    <div className="topnav__search-service-desc">
+                      Scalable DNS and Domain Name Registration
+                    </div>
+                  </div>
+                </div>
+                <div className="topnav__search-topfeatures">
+                  <span>Top features</span>
+                  <button type="button" onClick={() => go("/traffic-policies")}>
+                    Traffic flow
+                  </button>
+                  <button type="button" onClick={() => go("/health-checks")}>
+                    Health checks
+                  </button>
+                  <button type="button" onClick={() => go("/hosted-zones")}>
+                    Hosted zones
+                  </button>
+                  <button type="button" onClick={() => go("/registered-domains")}>
+                    Domain names
+                  </button>
+                  <button type="button" onClick={() => go("/inbound-endpoints")}>
+                    Resolver endpoints
+                  </button>
+                </div>
+              </div>
+
+              {results.length > 0 && (
+                <>
+                  <div className="topnav__search-section-title">
+                    Matching pages
+                  </div>
+                  {results.map((r, i) => (
+                    <button
+                      key={r.href}
+                      type="button"
+                      className={`topnav__search-result ${
+                        i === highlight ? "active" : ""
+                      }`}
+                      onMouseEnter={() => setHighlight(i)}
+                      onClick={() => go(r.href)}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="topnav__spacer" />
-      <button type="button" className="topnav__icon-btn" aria-label="CloudShell">
+
+      <button
+        type="button"
+        className="topnav__icon-btn"
+        aria-label="CloudShell"
+        onClick={() => setShellOpen((o) => !o)}
+      >
         <CloudShellIcon />
       </button>
-      <button type="button" className="topnav__icon-btn" aria-label="Notifications">
-        <BellIcon />
-      </button>
-      <div className="topnav__item-wrap">
+
+      <div className="topnav__item-wrap" ref={bellRef}>
+        <button
+          type="button"
+          className="topnav__icon-btn"
+          aria-label="Notifications"
+          aria-expanded={bellOpen}
+          onClick={() => setBellOpen((o) => !o)}
+        >
+          <BellIcon />
+        </button>
+        {bellOpen && (
+          <div className="topnav__menu topnav__notifications" role="menu">
+            <div className="topnav__notif-header">
+              <span className="topnav__menu-title">Notifications</span>
+              <button
+                type="button"
+                className="aws-signin__link topnav__notif-center"
+                onClick={() => {
+                  setBellOpen(false);
+                  router.push("/notifications");
+                }}
+              >
+                Notification center
+              </button>
+            </div>
+            <ul className="topnav__notif-list">
+              {NOTIFICATIONS.map((n) => (
+                <li key={n.id} className="topnav__notif-item">
+                  <span className={`topnav__notif-dot ${n.level}`} aria-hidden />
+                  <div className="topnav__notif-body">
+                    <div className="topnav__notif-title">{n.title}</div>
+                    <div className="topnav__notif-meta">
+                      {n.resource} · {n.time}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <div className="topnav__item-wrap" ref={menuRef}>
         <div
           className="topnav__item"
           title={user?.account_id}
@@ -65,6 +289,16 @@ export function TopNav() {
               type="button"
               className="topnav__menu-item"
               onClick={() => {
+                toggleTheme();
+                setMenuOpen(false);
+              }}
+            >
+              Switch to {theme === "dark" ? "light" : "dark"} mode
+            </button>
+            <button
+              type="button"
+              className="topnav__menu-item"
+              onClick={() => {
                 setMenuOpen(false);
                 logout();
               }}
@@ -74,6 +308,28 @@ export function TopNav() {
           </div>
         )}
       </div>
+
+      {shellOpen && (
+        <div className="cloudshell-panel" role="dialog" aria-label="CloudShell">
+          <div className="cloudshell-panel__header">
+            <span>CloudShell</span>
+            <button
+              type="button"
+              className="cloudshell-panel__close"
+              aria-label="Close CloudShell"
+              onClick={() => setShellOpen(false)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="cloudshell-panel__body">
+            <div>Welcome to AWS CloudShell (mock)</div>
+            <div className="cloudshell-panel__prompt">
+              [cloudshell-user@ip-10-0-0-1 ~]$ <span className="cloudshell-cursor">▋</span>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

@@ -20,7 +20,20 @@ def seed_if_empty() -> None:
             db.add(user)
             db.commit()
 
-        # Sample hosted zones
+        # Default session ("First Principles") for the admin user
+        user = db.query(models.User).filter(models.User.username == "admin").first()
+        session = (
+            db.query(models.AccountSession)
+            .filter(models.AccountSession.user_id == user.id)
+            .first()
+        )
+        if not session:
+            session = models.AccountSession(user_id=user.id, name="First Principles")
+            db.add(session)
+            db.commit()
+            db.refresh(session)
+
+        # Sample hosted zones (scoped to the default session)
         if not db.query(models.HostedZone).first():
             samples = [
                 ("example.com.", "Public", "Primary company domain"),
@@ -29,6 +42,7 @@ def seed_if_empty() -> None:
             ]
             for name, ztype, comment in samples:
                 zone = models.HostedZone(
+                    session_id=session.id,
                     zone_id=generate_zone_id(),
                     name=name,
                     type=ztype,
@@ -47,6 +61,10 @@ def seed_if_empty() -> None:
                             "ns-3.awsdns-02.com.",
                             "ns-4.awsdns-03.net.",
                         ]),
+                    ),
+                    models.DnsRecord(
+                        zone_id=zone.id, name=name, type="SOA", ttl=900,
+                        value="ns-1.awsdns-00.org. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400",
                     ),
                     models.DnsRecord(
                         zone_id=zone.id, name=name, type="A", ttl=300,

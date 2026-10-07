@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { FlashbarProvider } from "@/components/FlashbarProvider";
 import { Shell } from "@/components/Shell";
+import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Route 53 Management Console",
@@ -15,13 +16,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
-        <FlashbarProvider>
-          <AuthProvider>
-            <Shell>{children}</Shell>
-          </AuthProvider>
-        </FlashbarProvider>
+        <ThemeProvider>
+          <FlashbarProvider>
+            <AuthProvider>
+              <Shell>{children}</Shell>
+            </AuthProvider>
+          </FlashbarProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

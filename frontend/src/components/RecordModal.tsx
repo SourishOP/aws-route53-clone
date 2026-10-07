@@ -24,6 +24,7 @@ const VALUE_HINTS: Record<RecordType, string> = {
   PTR: "Domain name, e.g. host.example.com.",
   SRV: "Priority weight port target, e.g. 1 10 5060 sip.example.com.",
   CAA: 'Flags tag value, e.g. 0 issue "amazon.com"',
+  SOA: "Primary NS, admin, serial refresh retry expire minimum",
 };
 
 export function RecordModal({
@@ -164,6 +165,7 @@ function typeLabel(t: RecordType): string {
     PTR: "Pointer",
     SRV: "Service locator",
     CAA: "Certificate authority authorization",
+    SOA: "Start of authority",
   };
   return labels[t];
 }

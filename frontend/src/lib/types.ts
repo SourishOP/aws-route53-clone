@@ -27,6 +27,7 @@ export const RECORD_TYPES = [
   "PTR",
   "SRV",
   "CAA",
+  "SOA",
 ] as const;
 
 export type RecordType = (typeof RECORD_TYPES)[number];

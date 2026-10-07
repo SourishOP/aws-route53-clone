@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { Pagination } from "@/components/Pagination";
-import { InfoLink, RefreshIcon, GearIcon } from "@/components/icons";
+import { InfoLink, RefreshIcon } from "@/components/icons";
+import { NOTIFICATIONS } from "@/lib/notifications";
 
 export default function Page() {
   return (
@@ -60,7 +61,7 @@ export default function Page() {
         <div className="dash-card">
           <div className="dash-card__title">Domain registration</div>
           <div className="dash-card__body">
-            <span style={{ color: "var(--color-error-text, #d13212)", fontWeight: 700 }}>
+            <span style={{ color: "var(--color-error)", fontWeight: 700 }}>
               Error
             </span>
           </div>
@@ -89,10 +90,12 @@ export default function Page() {
           <button type="button" className="icon-btn" aria-label="Refresh">
             <RefreshIcon />
           </button>
-          <Pagination page={1} pageSize={10} total={0} onPageChange={() => {}} />
-          <button type="button" className="icon-btn" aria-label="Settings">
-            <GearIcon />
-          </button>
+          <Pagination
+            page={1}
+            pageSize={10}
+            total={NOTIFICATIONS.length}
+            onPageChange={() => {}}
+          />
         </div>
         <div className="table-wrap">
           <table className="data-table">
@@ -100,16 +103,34 @@ export default function Page() {
               <tr>
                 <th>Resource</th>
                 <th>Status</th>
+                <th>Last update</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td colSpan={2}>
-                  <div className="empty-state">
-                    <strong>No notifications to display</strong>
-                  </div>
-                </td>
-              </tr>
+              {NOTIFICATIONS.map((n) => (
+                <tr key={n.id}>
+                  <td>
+                    <div>{n.title}</div>
+                    <div className="cell-mono" style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      {n.resource}
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      className={`badge ${
+                        n.level === "success"
+                          ? "badge--public"
+                          : n.level === "warning"
+                          ? "badge--private"
+                          : ""
+                      }`}
+                    >
+                      {n.status}
+                    </span>
+                  </td>
+                  <td>{n.time}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

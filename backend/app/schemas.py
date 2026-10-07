@@ -2,9 +2,11 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "PTR", "SRV", "CAA"]
+from .validators import validate_record_value
+
+RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "PTR", "SRV", "CAA", "SOA"]
 
 
 # ---------- Auth ----------
@@ -19,6 +21,22 @@ class UserOut(BaseModel):
     account_id: str
 
     model_config = {"from_attributes": True}
+
+
+class SessionOut(BaseModel):
+    id: str
+    name: str
+    zone_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class SessionCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
+class ActivateSession(BaseModel):
+    session_id: str
 
 
 # ---------- Hosted Zones ----------
@@ -82,6 +100,11 @@ class DnsRecordBase(BaseModel):
             raise ValueError(f"type must be one of {RECORD_TYPES}")
         return v
 
+    @model_validator(mode="after")
+    def validate_value_for_type(self):
+        validate_record_value(self.type, self.value)
+        return self
+
 
 class DnsRecordCreate(DnsRecordBase):
     pass
@@ -132,3 +155,19 @@ class PaginatedRecords(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ---------- Import / Export ----------
+class ImportRequest(BaseModel):
+    content: str
+
+
+class ImportResult(BaseModel):
+    created: int
+    skipped: int
+    errors: List[str]
+
+
+class ZoneExport(BaseModel):
+    zone: HostedZoneOut
+    records: List[DnsRecordOut]
